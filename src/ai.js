@@ -6,8 +6,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const KNOWLEDGE_DIR = path.join(__dirname, '..', 'knowledge');
 
 const GEMINI_KEY = process.env.GEMINI_KEY || '';
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
-const GEMINI_URL = m => `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${GEMINI_KEY}`;
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-flash-latest';
+const GEMINI_URL = m => `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent`;
 
 // ── knowledge base: load all text files from /knowledge once, cache in memory ──
 let KB = null;
@@ -69,9 +69,15 @@ async function callGemini(system, user) {
     generationConfig: { temperature: 0.4, maxOutputTokens: 900 }
   };
   const r = await fetch(GEMINI_URL(GEMINI_MODEL), {
-    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-goog-api-key': GEMINI_KEY },
+    body: JSON.stringify(body)
   });
-  if (!r.ok) { const t = await r.text(); throw new Error('gemini_' + r.status + ': ' + t.slice(0, 200)); }
+  if (!r.ok) {
+    const t = await r.text();
+    console.error(`[ai] gemini ${r.status}: ${t.slice(0, 300)}`);
+    throw new Error('gemini_' + r.status);
+  }
   const j = await r.json();
   const text = j?.candidates?.[0]?.content?.parts?.map(p => p.text).filter(Boolean).join('\n');
   return text || '';
