@@ -66,7 +66,7 @@ async function callGemini(system, user) {
   const body = {
     system_instruction: { parts: [{ text: system }] },
     contents: [{ role: 'user', parts: [{ text: user }] }],
-    generationConfig: { temperature: 0.4, maxOutputTokens: 900 }
+    generationConfig: { temperature: 0.4, maxOutputTokens: 1800 }
   };
   const r = await fetch(GEMINI_URL(GEMINI_MODEL), {
     method: 'POST',
@@ -90,9 +90,18 @@ export async function aiOverview({ coin, lang }) {
     `Coin: ${coin}`,
     candlesToText(candles),
     '',
-    'Give a market overview using the methodology, in these sections:',
-    '- Trend', '- Volatility', '- Key levels (support/resistance)', '- Recommendation (what is better to do)',
-    'Keep it tight. End with the sections only.'
+    'Give a DETAILED market overview using the methodology.',
+    'CRITICAL FORMAT RULE: your answer MUST contain these four markers, each alone on its own line, in this exact order, spelled exactly like this:',
+    '[TREND]',
+    '[VOLATILITY]',
+    '[LEVELS]',
+    '[RECOMMENDATION]',
+    'After each marker, write that section (2-5 sentences, concrete). Do NOT use ###, **, or any other headers — ONLY these bracket markers.',
+    'Content of each section:',
+    '- [TREND]: current trend direction and strength, higher/lower highs, momentum',
+    '- [VOLATILITY]: how volatile, risk of sharp moves, recent range',
+    '- [LEVELS]: the concrete nearest support and resistance price levels and what they mean',
+    '- [RECOMMENDATION]: concrete plan — from which level to which level, where it is better to enter/exit, what to watch'
   ].join('\n');
   return callGemini(systemPrompt(lang), user);
 }
