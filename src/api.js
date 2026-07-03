@@ -4,7 +4,7 @@ import {
   upsertUser, getUser, setProfile, chargeUsd,
   useFreeOverview, useFreeReview, referralStats,
   saveAnalysis, listAnalyses, adminStats,
-  adminUsers, setBlocked, isBlocked, allUserIds
+  adminUsers, setBlocked, isBlocked, allUserIds, grantFree
 } from './db.js';
 import { pool } from './db.js';
 import {
@@ -141,7 +141,7 @@ api.post('/history/add', auth, async (req, res) => {
   res.json({ id: row.id, created_at: row.created_at });
 });
 api.post('/history/list', auth, async (req, res) => {
-  const rows = await listAnalyses(req.tgUser.id, 30);
+  const rows = await listAnalyses(req.tgUser.id, 20);
   res.json({ items: rows });
 });
 
@@ -189,6 +189,17 @@ api.post('/admin/stats', auth, async (req, res) => {
 api.post('/admin/users', auth, async (req, res) => {
   if (!isAdmin(req)) return res.status(403).json({ error: 'forbidden' });
   res.json({ users: await adminUsers() });
+});
+// grant free overviews/reviews to a user (admin only). Amounts add up; negative subtracts.
+api.post('/admin/grant', auth, async (req, res) => {
+  if (!isAdmin(req)) return res.status(403).json({ error: 'forbidden' });
+  const target = Number(req.body?.target);
+  const ov = Math.trunc(Number(req.body?.overviews) || 0);
+  const rv = Math.trunc(Number(req.body?.reviews) || 0);
+  if (!target) return res.status(400).json({ error: 'bad_target' });
+  const u = await grantFree(target, ov, rv);
+  if (!u) return res.status(404).json({ error: 'user_not_found' });
+  res.json({ ok: true, free_overviews: u.free_overviews, free_reviews: u.free_reviews });
 });
 // block / unblock a user
 api.post('/admin/block', auth, async (req, res) => {

@@ -184,9 +184,13 @@ export async function saveAnalysis(id, kind, coin, level, payload) {
      VALUES ($1,$2,$3,$4,$5) RETURNING id, created_at`,
     [id, kind, coin || null, level || null, JSON.stringify(payload || {})]
   );
+  // keep only the latest 20 per user
+  await pool.query(
+    `DELETE FROM analyses WHERE telegram_id=$1 AND id NOT IN
+       (SELECT id FROM analyses WHERE telegram_id=$1 ORDER BY created_at DESC LIMIT 20)`, [id]);
   return rows[0];
 }
-export async function listAnalyses(id, limit = 30) {
+export async function listAnalyses(id, limit = 20) {
   const { rows } = await pool.query(
     `SELECT id, kind, coin, level, payload, created_at FROM analyses
        WHERE telegram_id=$1 ORDER BY created_at DESC LIMIT $2`, [id, limit]);
@@ -223,6 +227,14 @@ export async function adminUsers() {
 }
 export async function setBlocked(id, blocked) {
   await pool.query('UPDATE users SET blocked=$2 WHERE telegram_id=$1', [id, !!blocked]);
+}
+// admin grant: add (or subtract) free overviews/reviews for a user, floor at 0
+export async function grantFree(id, ov, rv) {
+  await pool.query(
+    `UPDATE users SET free_overviews = GREATEST(0, free_overviews + $2),
+                      free_reviews   = GREATEST(0, free_reviews + $3)
+       WHERE telegram_id=$1`, [id, ov, rv]);
+  return getUser(id);
 }
 export async function isBlocked(id) {
   const { rows } = await pool.query('SELECT blocked FROM users WHERE telegram_id=$1', [id]);

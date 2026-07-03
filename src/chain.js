@@ -80,6 +80,10 @@ async function tryCredit(net, coin, tx) {
   if (!dep) return;
 
   const credited = await usdValue(coin, Number(dep.expected_amount));
+  if (!(credited > 0)) {   // e.g. ETH price feed briefly down: retry on next scan instead of crediting 0
+    console.error(`[chain] skip credit for tx ${tx.hash}: USD value unavailable for ${coin}, will retry`);
+    return;
+  }
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
